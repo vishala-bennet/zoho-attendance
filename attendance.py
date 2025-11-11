@@ -22,13 +22,14 @@ class ZohoPeopleAttendanceAgent:
         options.add_argument("--disable-gpu")
         options.add_argument("--disable-web-resources")
         options.add_argument("--disable-extensions")
+        options.add_argument("--start-maximized")
         
         print(f"🔧 Initializing Chrome...")
         self.driver = webdriver.Chrome(
             service=Service(ChromeDriverManager().install()),
             options=options
         )
-        self.wait = WebDriverWait(self.driver, 20)  # Increased timeout
+        self.wait = WebDriverWait(self.driver, 30)  # Increased to 30 seconds
     
     def login_and_checkin(self):
         try:
@@ -50,7 +51,7 @@ class ZohoPeopleAttendanceAgent:
             email_field.clear()
             email_field.send_keys(self.email)
             print(f"✓ Email entered: {self.email}")
-            time.sleep(1)
+            time.sleep(2)
             
             # Step 3: Click Next button
             print("📍 [Step 3] Clicking Next button...")
@@ -71,7 +72,7 @@ class ZohoPeopleAttendanceAgent:
             password_field.clear()
             password_field.send_keys(self.password)
             print("✓ Password entered")
-            time.sleep(1)
+            time.sleep(2)
             
             # Step 5: Click Sign in button
             print("📍 [Step 5] Clicking Sign in button...")
@@ -81,13 +82,28 @@ class ZohoPeopleAttendanceAgent:
             )
             signin_button.click()
             print("✓ Clicked Sign in")
-            time.sleep(5)
+            print("⏳ Waiting for page to redirect after login...")
+            
+            # ✅ CRITICAL FIX: Wait for URL to change (proves we logged in)
+            try:
+                self.wait.until(
+                    EC.url_changes("https://accounts.zoho.in/signin"),
+                    message="Login page redirect timeout!"
+                )
+                print("✓ URL changed - Login successful!")
+            except:
+                print("⚠️ URL didn't change as expected, but continuing...")
+            
+            time.sleep(5)  # Extra wait for page to fully load
+            
+            print(f"🔍 Current URL: {self.driver.current_url}")
+            print(f"🔍 Page title: {self.driver.title}")
             
             # Step 6: Click Check-in/Check-out button
             print("📍 [Step 6] Clicking Check-in/Check-out button...")
             checkin_button = self.wait.until(
                 EC.element_to_be_clickable((By.XPATH, "//*[@id='ZPAtt_check_in_out']")),
-                message="Check-in button not found!"
+                message="Check-in button not found! (Might still be on login page)"
             )
             checkin_button.click()
             print("✓ Clicked Check-in/Check-out")
@@ -99,20 +115,19 @@ class ZohoPeopleAttendanceAgent:
         except Exception as e:
             print(f"\n❌ ERROR OCCURRED:")
             print(f"Error message: {str(e)}")
-            print(f"\nFull traceback:")
-            traceback.print_exc()
             print(f"\n🔍 Current page URL: {self.driver.current_url}")
             print(f"🔍 Page title: {self.driver.title}")
-            return False
-        
-        finally:
+            
+            # Save debug screenshot
             try:
-                # Take a screenshot for debugging
                 self.driver.save_screenshot("debug_screenshot.png")
                 print("\n📸 Debug screenshot saved!")
             except:
                 pass
             
+            return False
+        
+        finally:
             time.sleep(2)
             self.driver.quit()
             print("Browser closed.")
