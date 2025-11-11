@@ -7,6 +7,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 import time
+import traceback
 
 
 class ZohoPeopleAttendanceAgent:
@@ -14,92 +15,129 @@ class ZohoPeopleAttendanceAgent:
         self.email = email
         self.password = password
         
-        # ✅ FIXED: Add headless mode for GitHub Actions
         options = Options()
-        options.add_argument("--headless")  # No display window
-        options.add_argument("--no-sandbox")  # For GitHub Actions
-        options.add_argument("--disable-dev-shm-usage")  # For GitHub Actions
-        options.add_argument("--disable-gpu")  # No GPU needed
+        options.add_argument("--headless")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--disable-web-resources")
+        options.add_argument("--disable-extensions")
         
+        print(f"🔧 Initializing Chrome...")
         self.driver = webdriver.Chrome(
             service=Service(ChromeDriverManager().install()),
             options=options
         )
-        self.wait = WebDriverWait(self.driver, 15)
+        self.wait = WebDriverWait(self.driver, 20)  # Increased timeout
     
     def login_and_checkin(self):
         try:
             print("🔄 Starting Zoho People automation...")
+            print(f"📧 Email: {self.email}")
             
             # Step 1: Navigate to Zoho People
+            print("📍 [Step 1] Navigating to Zoho People...")
             self.driver.get("https://people.zoho.in/customerlabs/zp#home/myspace/overview-actionlist")
-            print("✓ Navigated to Zoho People")
-            time.sleep(3)
+            print("✓ Page loaded, waiting for email field...")
+            time.sleep(5)
             
             # Step 2: Fill email field
+            print("📍 [Step 2] Filling email field...")
             email_field = self.wait.until(
-                EC.presence_of_element_located((By.ID, "login_id"))
+                EC.presence_of_element_located((By.ID, "login_id")),
+                message="Email field not found!"
             )
             email_field.clear()
             email_field.send_keys(self.email)
-            print(f"✓ Entered email: {self.email}")
+            print(f"✓ Email entered: {self.email}")
             time.sleep(1)
             
             # Step 3: Click Next button
+            print("📍 [Step 3] Clicking Next button...")
             next_button = self.wait.until(
-                EC.element_to_be_clickable((By.XPATH, "//*[@id='nextbtn']"))
+                EC.element_to_be_clickable((By.XPATH, "//*[@id='nextbtn']")),
+                message="Next button not found!"
             )
             next_button.click()
             print("✓ Clicked Next")
-            time.sleep(2)
+            time.sleep(3)
             
             # Step 4: Fill password field
+            print("📍 [Step 4] Filling password field...")
             password_field = self.wait.until(
-                EC.presence_of_element_located((By.ID, "password"))
+                EC.presence_of_element_located((By.ID, "password")),
+                message="Password field not found!"
             )
             password_field.clear()
             password_field.send_keys(self.password)
-            print("✓ Entered password")
+            print("✓ Password entered")
             time.sleep(1)
             
             # Step 5: Click Sign in button
+            print("📍 [Step 5] Clicking Sign in button...")
             signin_button = self.wait.until(
-                EC.element_to_be_clickable((By.XPATH, "//*[@id='nextbtn']"))
+                EC.element_to_be_clickable((By.XPATH, "//*[@id='nextbtn']")),
+                message="Sign in button not found!"
             )
             signin_button.click()
             print("✓ Clicked Sign in")
-            time.sleep(4)
+            time.sleep(5)
             
             # Step 6: Click Check-in/Check-out button
+            print("📍 [Step 6] Clicking Check-in/Check-out button...")
             checkin_button = self.wait.until(
-                EC.element_to_be_clickable((By.XPATH, "//*[@id='ZPAtt_check_in_out']"))
+                EC.element_to_be_clickable((By.XPATH, "//*[@id='ZPAtt_check_in_out']")),
+                message="Check-in button not found!"
             )
             checkin_button.click()
             print("✓ Clicked Check-in/Check-out")
-            time.sleep(2)
+            time.sleep(3)
             
-            print("✅ Success! Attendance marked!")
+            print("✅ SUCCESS! Attendance marked!")
+            return True
             
         except Exception as e:
-            print(f"❌ Error: {str(e)}")
-            import traceback
-            traceback.print_exc()  # Print full error details
+            print(f"\n❌ ERROR OCCURRED:")
+            print(f"Error message: {str(e)}")
+            print(f"\nFull traceback:")
+            traceback.print_exc()
+            print(f"\n🔍 Current page URL: {self.driver.current_url}")
+            print(f"🔍 Page title: {self.driver.title}")
+            return False
         
         finally:
-            time.sleep(3)
+            try:
+                # Take a screenshot for debugging
+                self.driver.save_screenshot("debug_screenshot.png")
+                print("\n📸 Debug screenshot saved!")
+            except:
+                pass
+            
+            time.sleep(2)
             self.driver.quit()
+            print("Browser closed.")
 
 
 # Usage
 if __name__ == "__main__":
-    # ✅ FIXED: Read from environment variables (GitHub Secrets)
     email = os.getenv('EMAIL')
     password = os.getenv('PASSWORD')
     
     if not email or not password:
-        print("❌ EMAIL or PASSWORD not set in environment variables")
+        print("❌ ERROR: EMAIL or PASSWORD not set!")
+        print("Make sure you added ZOHO_EMAIL and ZOHO_PASSWORD secrets to GitHub")
         exit(1)
     
-    print(f"📧 Running with email: {email}")
+    print("=" * 50)
+    print("🚀 ZOHO ATTENDANCE AUTOMATION")
+    print("=" * 50)
+    
     agent = ZohoPeopleAttendanceAgent(email, password)
-    agent.login_and_checkin()
+    success = agent.login_and_checkin()
+    
+    if success:
+        print("\n🎉 Workflow completed successfully!")
+        exit(0)
+    else:
+        print("\n⚠️ Workflow completed but automation failed!")
+        exit(1)
