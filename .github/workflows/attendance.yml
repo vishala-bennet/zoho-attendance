@@ -1,0 +1,28 @@
+name: Attendance Agent
+
+on:
+  schedule:
+    - cron: '30 4 * * 1-5'
+    - cron: '30 15 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  attendance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+      
+      - name: Install dependencies
+        run: |
+          pip install selenium schedule webdriver-manager
+      
+      - name: Run attendance script
+        env:
+          EMAIL: ${{ secrets.ZOHO_EMAIL }}
+          PASSWORD: ${{ secrets.ZOHO_PASSWORD }}
+        run: python attendance.py
